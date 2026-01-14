@@ -7,7 +7,8 @@ sudo apt-get install -y \
   ca-certificates \
   curl \
   gnupg \
-  lsb-release
+  lsb-release \
+  iproute2
 
 # Install Docker (official repo)
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -39,5 +40,9 @@ if ! grep -q "^wireguard$" /etc/modules; then
   echo "wireguard" | sudo tee -a /etc/modules > /dev/null
 fi
 sudo modprobe wireguard || true
+
+echo "Checking port 53 usage (for AdGuard Home)..."
+sudo ss -lunpt | grep ':53 ' || true
+sudo ss -ltnp | grep ':53 ' || true
 
 echo "Done. Reboot recommended, then run: docker compose up -d"
