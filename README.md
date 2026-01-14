@@ -75,8 +75,6 @@ This README focuses on WireGuard as requested.
 Create a `docker-compose.yml` in the project root. A template is provided in `docker-compose.yml.template`.
 
 ```yaml
-version: "3.8"
-
 services:
   wireguard:
     image: lscr.io/linuxserver/wireguard:latest
@@ -88,10 +86,10 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-      - SERVERURL=your-ddns-hostname.example.com
+      - SERVERURL=your-subdomain.duckdns.org
       - SERVERPORT=51820
       - PEERS=iphone
-      - PEERDNS=auto
+      - PEERDNS=your-pi-lan-ip
       - INTERNAL_SUBNET=10.13.13.0
     volumes:
       - ./config:/config
@@ -109,21 +107,46 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-      - SUBDOMAINS=your-duckdns-subdomain
+      - SUBDOMAINS=your-subdomain
       - TOKEN=your-duckdns-token
+    restart: unless-stopped
+
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    network_mode: host
+    volumes:
+      - ./adguard/work:/opt/adguardhome/work
+      - ./adguard/conf:/opt/adguardhome/conf
+    restart: unless-stopped
+
+  unbound:
+    image: mvance/unbound:latest
+    container_name: unbound
+    ports:
+      - "5335:53/tcp"
+      - "5335:53/udp"
     restart: unless-stopped
 ```
 
 Notes:
-- Replace `SERVERURL` with your DDNS hostname.
+- Replace `SERVERURL` and `SUBDOMAINS` with your DuckDNS subdomain.
+- Replace `PEERDNS` with your Pi LAN IP so VPN clients use your DNS.
 - If you use another DDNS provider, swap the service.
 - The WireGuard container will create configs in `./config`.
+- AdGuard Home uses host networking and binds ports 53/80/3000 on the Pi.
 
 Optional helper:
 
 ```sh
 make compose-init
 make compose-up
+```
+
+If you hit a container name conflict from a previous run:
+
+```sh
+docker rm -f wireguard duckdns
 ```
 
 ## Ops (Make Targets)
@@ -133,9 +156,11 @@ Common operational commands:
 ```sh
 make compose-up
 make compose-down
+make compose-purge
 make restart
 make ps
 make logs
+make dns-check
 ```
 
 ## Network Flow
@@ -159,24 +184,78 @@ make logs
    - Create a DuckDNS (or similar) hostname.
    - Add the DDNS container to docker-compose.
 
-4. Docker + Compose
+4. DNS (AdGuard Home + Unbound)
+   - DNS will serve both VPN clients and your LAN.
+   - Ensure nothing else binds port 53 on the Pi.
+   - Configure AdGuard to use Unbound as the upstream resolver.
+
+5. Docker + Compose
    - Install Docker and docker-compose plugin.
    - Place the `docker-compose.yml` in the project root.
    - Start services: `docker compose up -d`.
 
-5. WireGuard Client (iPhone)
+6. WireGuard Client (iPhone)
    - Install WireGuard app on iOS.
    - Import the generated config from `./config`.
    - Connect and verify tunnel.
 
-6. MacBook Pro
+7. MacBook Pro
    - Enable SSH (System Settings -> Remote Login).
    - Confirm LAN IP (e.g., 192.168.1.20).
    - From iPhone, connect: `ssh user@192.168.1.20`.
 
-7. Validate
+8. Validate
    - Test from an external network (cellular).
    - Confirm iPhone can reach MacBook via SSH.
+
+## DNS (AdGuard Home + Unbound)
+
+Goal: run DNS on the Pi for VPN clients and your entire LAN. AdGuard Home is the DNS front-end and Unbound is the local upstream resolver.
+
+1. Check port 53 is free:
+
+```sh
+sudo ss -lunpt | grep ':53 ' || true
+sudo ss -ltnp | grep ':53 ' || true
+```
+
+If anything is listening on 53, disable it before starting AdGuard.
+
+2. Start the stack:
+
+```sh
+make compose-up
+```
+
+3. Initial AdGuard setup:
+
+- Open `http://your-pi-lan-ip:3000` in a browser.
+- Complete the setup wizard.
+- After setup, the UI is typically `http://your-pi-lan-ip`.
+
+4. Configure AdGuard upstreams to Unbound:
+
+- Settings -> DNS settings -> Upstream DNS servers:
+  - `udp://127.0.0.1:5335`
+  - `tcp://127.0.0.1:5335`
+
+5. Make VPN clients use your DNS:
+
+- Set `PEERDNS=your-pi-lan-ip` in `docker-compose.yml`.
+- Recreate the stack: `docker compose up -d`.
+
+6. Make your LAN use your DNS:
+
+- Set your router DHCP DNS to your Pi LAN IP.
+- Alternatively, set DNS manually on each LAN device.
+
+Verification:
+
+```sh
+docker logs --tail=200 adguardhome
+docker logs --tail=200 unbound
+docker exec -it wireguard wg
+```
 
 ## Step-by-step install script (Docker + WireGuard)
 
