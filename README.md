@@ -28,6 +28,36 @@ Notes:
 - Use a static DHCP lease for the Pi (e.g., 192.168.1.10).
 - Enable SSH on first boot and update packages.
 
+## Git + Repo Clone (Raspberry Pi)
+
+Use this section to confirm Git is installed on the Pi and clone the repo.
+
+1. Check if Git is installed:
+
+```sh
+git --version
+```
+
+If it is missing, install it:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y git
+```
+
+2. Clone the repo (replace the URL if needed):
+
+```sh
+git clone <REPO_URL> ~/pi-guard
+cd ~/pi-guard
+```
+
+3. Optional: confirm you are in the repo:
+
+```sh
+git status -sb
+```
+
 ## VPN Options Summary
 
 WireGuard (self-hosted):
