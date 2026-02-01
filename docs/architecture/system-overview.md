@@ -28,8 +28,8 @@ This document provides a technical overview of the pi-guard HomeLab architecture
 │  └─ Tor Services (Hidden Services)                         │
 ├─────────────────────────────────────────────────────────────┤
 │  Docker Networks                                            │
-│  ├─ pi-guard_security_net (Isolated)                      │
-│  ├─ pi-guard_tor_net (Isolated)                           │
+│  ├─ security_net (Isolated)                               │
+│  ├─ tor_net (Isolated, Internal)                          │
 │  └─ bridge (Default)                                       │
 └─────────────────────┬───────────────────────────────────────┘
                       │ LAN Access
@@ -109,30 +109,31 @@ This document provides a technical overview of the pi-guard HomeLab architecture
 ### Docker Networks
 
 ```yaml
-# pi-guard_security_net (Bridge Network)
+# security_net (Bridge Network - 172.20.0.0/16)
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Portainer     │    │    Pi-hole      │    │   Kali Linux    │
-│     :9443       │    │     :53         │    │   :no-internet  │
+│     :9443       │    │     :53         │    │  172.20.0.10    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          └───────────────────────┼───────────────────────┘
                                  │
                     ┌─────────────────┐
-                    │  Docker Bridge  │
-                    │ 172.18.0.0/16   │
+                    │  security_net   │
+                    │ 172.20.0.0/16   │
                     └─────────────────┘
 
-# pi-guard_tor_net (Isolated)
+# tor_net (Internal/Isolated - 172.21.0.0/16)
 ┌─────────────────┐    ┌─────────────────┐
-│      Tor        │    │  Tor Hidden     │
-│     :9050       │    │     Web         │
+│      Tor        │    │  nginx-hidden   │
+│     :9050       │    │   (web server)  │
 └─────────────────┘    └─────────────────┘
          │                       │
          └───────────────────────┼───────────────────────┘
                                  │
                     ┌─────────────────┐
-                    │  Docker Bridge  │
-                    │ 172.19.0.0/16   │
+                    │    tor_net      │
+                    │ 172.21.0.0/16   │
+                    │   (internal)    │
                     └─────────────────┘
 ```
 
@@ -143,8 +144,8 @@ This document provides a technical overview of the pi-guard HomeLab architecture
 | Router LAN | 192.168.1.0/24 | Home network |
 | Raspberry Pi | 192.168.1.10 | Docker host |
 | VPN Clients | 10.13.13.0/24 | WireGuard tunnel |
-| Security Net | 172.18.0.0/16 | Docker services |
-| Tor Net | 172.19.0.0/16 | Tor services |
+| security_net | 172.20.0.0/16 | Docker services |
+| tor_net | 172.21.0.0/16 | Tor services (internal) |
 
 ## Data Flow Patterns
 
