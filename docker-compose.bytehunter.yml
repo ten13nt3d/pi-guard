@@ -1,0 +1,229 @@
+# Enhanced Docker Compose with ByteHunter AI Security System
+# Multi-Agent Security Testing Framework
+#
+# Prerequisites:
+#   1. Copy .env.template to .env and configure your values
+#   2. Run: ./scripts/install_bytehunter.sh
+#
+# Usage:
+#   docker compose -f docker-compose.bytehunter.yml up -d
+
+services:
+  # Portainer - Docker Management UI
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9443:9443"
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/portainer/data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # Pi-hole DNS Server
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    hostname: pi-hole
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - WEBPASSWORD=${PIHOLE_PASSWORD:?PIHOLE_PASSWORD is required - set in .env file}
+      - PIHOLE_DNS_=1.1.1.1;8.8.8.8
+    volumes:
+      - ./config/pihole/etc-pihole:/etc/pihole
+      - ./config/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "80:80/tcp"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "dig", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # WireGuard VPN Server
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+      - SERVERURL=${SERVERURL:?SERVERURL is required - set in .env file}
+      - SERVERPORT=51820
+      - PEERS=iphone,security-tools
+      - PEERDNS=${PI_LAN_IP:-192.168.1.10}
+      - INTERNAL_SUBNET=10.13.13.0
+    volumes:
+      - ./config/wireguard:/config
+      - /lib/modules:/lib/modules:ro
+    ports:
+      - "51820:51820/udp"
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+    depends_on:
+      pihole:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wg", "show"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # Enhanced Kali Linux Container with AI Tools
+  kali:
+    image: kalilinux/kali-rolling:latest
+    container_name: kali
+    command: sleep infinity
+    environment:
+      - TERM=xterm
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./config/kali:/root/shared
+      - ./config/ai-tools:/opt/ai-tools
+      - ./config/ai-tools/shared:/shared
+    networks:
+      security_net:
+        ipv4_address: 172.20.0.10
+    restart: unless-stopped
+    depends_on:
+      - wireguard
+    healthcheck:
+      test: ["CMD", "cat", "/proc/1/status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  # ByteHunter Orchestrator - Main AI Security System
+  # Note: Docker socket access removed for security. Use docker exec for container management.
+  bytehunter:
+    image: python:3.11-slim
+    container_name: bytehunter
+    command: python /opt/bytehunter/bytehunter.py
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./config/ai-tools:/opt/bytehunter
+      - ./config/ai-tools/shared:/shared
+    networks:
+      security_net:
+        ipv4_address: 172.20.0.20
+    depends_on:
+      - kali
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # Tor Hidden Service
+  tor-hidden-service:
+    image: lscr.io/linuxserver/tor:latest
+    container_name: tor
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+    volumes:
+      - ./config/tor:/config
+    ports:
+      - "9050:9050"
+      # Control port restricted to localhost for security
+      - "127.0.0.1:9051:9051"
+      - "8080:8080"
+    networks:
+      - tor_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--socks5", "127.0.0.1:9050", "--silent", "https://check.torproject.org/api/ip"]
+      interval: 60s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # Web Server for Hidden Service
+  nginx-hidden:
+    image: nginx:alpine
+    container_name: nginx-hidden
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/html:/usr/share/nginx/html:ro
+    networks:
+      - security_net
+      - tor_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+
+networks:
+  security_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+  tor_net:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+          gateway: 172.21.0.1
