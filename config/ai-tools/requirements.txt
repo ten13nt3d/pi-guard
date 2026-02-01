@@ -1,0 +1,49 @@
+# Pi-Guard AI Security Tools - Python Requirements
+# Install with: pip install -r requirements.txt
+
+# Core HTTP/Networking
+requests>=2.31.0
+urllib3>=2.0.0
+aiohttp>=3.9.0
+
+# HTML/Web Parsing
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Terminal UI
+colorama>=0.4.6
+tabulate>=0.9.0
+rich>=13.0.0
+
+# Security Tools Integration
+python-nmap>=0.7.1
+shodan>=1.30.0
+paramiko>=3.4.0
+scapy>=2.5.0
+
+# AI/LLM Integration (optional - requires API keys)
+openai>=1.0.0
+anthropic>=0.18.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# JSON/YAML Processing
+pyyaml>=6.0.0
+
+# Async Support
+asyncio-throttle>=1.0.0
+
+# Reporting
+jinja2>=3.1.0
+markdown>=3.5.0
+
+# DNS/Network Utilities
+dnspython>=2.4.0
+
+# Rate Limiting
+ratelimit>=2.2.1
+
+# Environment Variables
+python-dotenv>=1.0.0
