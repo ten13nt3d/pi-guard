@@ -1,0 +1,53 @@
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Configuration directories with sensitive data
+config/wireguard/
+config/tor/hidden_service/
+config/portainer/data/
+
+# Pi-hole data (may contain network info)
+config/pihole/etc-pihole/
+config/pihole/etc-dnsmasq.d/
+
+# AI tools results and logs
+config/ai-tools/shared/results/
+config/ai-tools/**/logs/
+*.log
+
+# Backup files with sensitive data
+backups/
+*.tar.gz
+*.backup
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# IDE/Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+venv/
+.venv/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
