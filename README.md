@@ -1,366 +1,282 @@
 # pi-guard - HomeLab VPN on Raspberry Pi
 
-Project specs for a HomeLab-style VPN on a Raspberry Pi using Dockerized apps. The goal is to let an iPhone connect from outside the home network and reach a MacBook Pro on the home LAN through the Raspberry Pi tunnel.
+A comprehensive HomeLab project featuring a secure VPN setup with Dockerized services including Portainer, Kali Linux container, Pi-hole, and Tor hidden services. The goal is to enable secure remote access from an iPhone to home network resources through a Raspberry Pi.
 
-## Goals
+## Overview
 
-- Remote access from iPhone to MacBook Pro via Raspberry Pi VPN.
-- Access works from any external network.
-- Dockerized services on the Pi, headless operation.
-- Simple to maintain with minimal moving parts.
+### Core Services
+- **WireGuard VPN** - Secure remote access tunnel
+- **Docker & Portainer** - Containerized services with web management
+- **Kali Linux Container** - Security testing tools suite
+- **Pi-hole** - Network-wide ad blocking and DNS control
+- **Tor Onion Service** - Anonymous web service hosting
 
-## Recommended Architecture
+### Hardware Requirements
+- Raspberry Pi 4 (4GB+ recommended)
+- 32GB+ microSD card
+- Stable internet connection
 
-- Raspberry Pi runs the VPN server in Docker.
-- iPhone connects to the VPN from the internet.
-- MacBook Pro stays on the home LAN and is reached by its LAN IP once the VPN is up.
-- Router forwards one UDP port to the Pi if using WireGuard directly.
+## Quick Start
 
-## Choose the System (OS) for the Raspberry Pi
-
-Recommended:
-- Raspberry Pi OS Lite (64-bit, Debian-based). Small, stable, and well supported.
-
-Also acceptable:
-- Debian Bookworm ARM64 (headless), if you want a stock Debian base.
-
-Notes:
-- Use a static DHCP lease for the Pi (e.g., 192.168.1.10).
-- Enable SSH on first boot and update packages.
-
-## Git + Repo Clone (Raspberry Pi)
-
-Use this section to confirm Git is installed on the Pi and clone the repo.
-
-1. Check if Git is installed:
-
-```sh
-git --version
+### 1. System Setup
+```bash
+# Flash Raspberry Pi OS Lite (64-bit) to SD card
+# Enable SSH by creating empty 'ssh' file in boot partition
+# Boot Pi and connect via SSH
+ssh pi@raspberrypi.local
 ```
 
-If it is missing, install it:
-
-```sh
-sudo apt-get update
-sudo apt-get install -y git
-```
-
-2. Clone the repo (replace the URL if needed):
-
-```sh
-git clone <REPO_URL> ~/pi-guard
+### 2. Install pi-guard
+```bash
+# Clone and setup
+git clone <your-repo-url> ~/pi-guard
 cd ~/pi-guard
+
+# Run installation script
+chmod +x scripts/install_enhanced_pi.sh
+./scripts/install_enhanced_pi.sh
 ```
 
-3. Optional: confirm you are in the repo:
+### 3. Start Services
+```bash
+# Launch all services
+docker-compose -f docker-compose.enhanced.yml up -d
 
-```sh
-git status -sb
+# Check status
+docker ps
 ```
 
-## VPN Options Summary
+## Service Configuration
 
-WireGuard (self-hosted):
-- Fast, minimal, full control.
-- Requires port forwarding and DDNS.
-
-Tailscale (SaaS) or Headscale (self-hosted control plane):
-- No port forwarding.
-- Easiest setup, but depends on Tailscale control plane unless you run Headscale.
-
-This README focuses on WireGuard as requested.
-
-## Docker Compose (WireGuard)
-
-Create a `docker-compose.yml` in the project root. A template is provided in `docker-compose.yml.template`.
-
+### WireGuard VPN
+Edit `docker-compose.enhanced.yml`:
 ```yaml
-services:
-  wireguard:
-    image: lscr.io/linuxserver/wireguard:latest
-    container_name: wireguard
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Etc/UTC
-      - SERVERURL=your-subdomain.duckdns.org
-      - SERVERPORT=51820
-      - PEERS=iphone
-      - PEERDNS=your-pi-lan-ip
-      - INTERNAL_SUBNET=10.13.13.0
-    volumes:
-      - ./config:/config
-      - /lib/modules:/lib/modules:ro
-    ports:
-      - "51820:51820/udp"
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
-    restart: unless-stopped
-
-  duckdns:
-    image: lscr.io/linuxserver/duckdns:latest
-    container_name: duckdns
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=Etc/UTC
-      - SUBDOMAINS=your-subdomain
-      - TOKEN=your-duckdns-token
-    restart: unless-stopped
-
-  adguardhome:
-    image: adguard/adguardhome:latest
-    container_name: adguardhome
-    network_mode: host
-    volumes:
-      - ./adguard/work:/opt/adguardhome/work
-      - ./adguard/conf:/opt/adguardhome/conf
-    restart: unless-stopped
-
-  unbound:
-    image: mvance/unbound:latest
-    container_name: unbound
-    ports:
-      - "5335:53/tcp"
-      - "5335:53/udp"
-    restart: unless-stopped
+# Update these values:
+SERVERURL=your-subdomain.duckdns.org
+PEERDNS=192.168.1.10  # Your Pi's IP
 ```
 
-Notes:
-- Replace `SERVERURL` and `SUBDOMAINS` with your DuckDNS subdomain.
-- Replace `PEERDNS` with your Pi LAN IP so VPN clients use your DNS.
-- If you use another DDNS provider, swap the service.
-- The WireGuard container will create configs in `./config`.
-- AdGuard Home uses host networking and binds ports 53/80/3000 on the Pi.
+**Router Setup:**
+- Forward UDP 51820 to Raspberry Pi
+- Configure DDNS (DuckDNS recommended)
 
-Optional helper:
+### Portainer (Docker Management)
+- Access: `https://your-pi-ip:9443`
+- Create admin account on first visit
+- Manage all containers via web interface
 
-```sh
-make compose-init
-make compose-up
+### Kali Linux Container
+```bash
+# Access security tools
+docker exec -it kali bash
+
+# Update tools
+apt update && apt install -y nmap metasploit-framework wireshark-common
 ```
 
-If you hit a container name conflict from a previous run:
+### Pi-hole (DNS & Ad Blocking)
+- Web interface: `http://your-pi-ip/admin`
+- Default login: `admin/admin123`
+- **Router Setup:** Set router DHCP DNS to Pi's IP address
 
-```sh
-docker rm -f wireguard duckdns
+### Tor Onion Service
+```bash
+# Find your .onion address
+cat config/tor/hidden_service/hostname
+
+# Access via Tor Browser when connected to VPN
 ```
 
-## Ops (Make Targets)
+## Network Architecture
 
-Common operational commands:
-
-```sh
-make compose-up
-make compose-down
-make compose-purge
-make restart
-make ps
-make logs
-make dns-check
+```
+Internet → Router → Raspberry Pi → Services
+           │
+    iPhone (WireGuard VPN)
+           │
+    MacBook Pro (Home LAN)
 ```
 
-## Network Flow
+### Service Ports
+| Service | Port | Purpose | Exposure |
+|---------|------|---------|----------|
+| WireGuard | 51820/UDP | VPN server | Internet |
+| Portainer | 9443/TCP | Docker UI | LAN only |
+| Pi-hole | 53/UDP+TCP | DNS | LAN |
+| Pi-hole Web | 80/TCP | Admin interface | LAN |
+| Tor | 9050/TCP | SOCKS proxy | LAN |
+| Tor Hidden | 80/TCP | .onion service | Via Tor |
 
-- iPhone -> WireGuard on Raspberry Pi (UDP 51820).
-- WireGuard routes to LAN.
-- iPhone -> MacBook Pro (e.g., 192.168.1.20:22).
+## Advanced Features
 
-## Detailed Plan
+### Security Testing with Kali
+```bash
+# Port scanning
+docker exec -it kali nmap -sS 192.168.1.0/24
 
-1. Hardware + OS
-   - Flash Raspberry Pi OS Lite (64-bit) to SD card.
-   - Enable SSH (create empty `ssh` file in boot partition).
-   - Boot the Pi and update packages.
+# Web app testing
+docker exec -it kali nikto -h http://target-site.com
 
-2. Network Setup
-   - Reserve a static DHCP lease for the Pi (e.g., 192.168.1.10).
-   - Set router port forward: UDP 51820 -> 192.168.1.10.
-
-3. DDNS
-   - Create a DuckDNS (or similar) hostname.
-   - Add the DDNS container to docker-compose.
-
-4. DNS (AdGuard Home + Unbound)
-   - DNS will serve both VPN clients and your LAN.
-   - Ensure nothing else binds port 53 on the Pi.
-   - Configure AdGuard to use Unbound as the upstream resolver.
-
-5. Docker + Compose
-   - Install Docker and docker-compose plugin.
-   - Place the `docker-compose.yml` in the project root.
-   - Start services: `docker compose up -d`.
-
-6. WireGuard Client (iPhone)
-   - Install WireGuard app on iOS.
-   - Import the generated config from `./config`.
-   - Connect and verify tunnel.
-
-7. MacBook Pro
-   - Enable SSH (System Settings -> Remote Login).
-   - Confirm LAN IP (e.g., 192.168.1.20).
-   - From iPhone, connect: `ssh user@192.168.1.20`.
-
-8. Validate
-   - Test from an external network (cellular).
-   - Confirm iPhone can reach MacBook via SSH.
-
-## DNS (AdGuard Home + Unbound)
-
-Goal: run DNS on the Pi for VPN clients and your entire LAN. AdGuard Home is the DNS front-end and Unbound is the local upstream resolver.
-
-1. Check port 53 is free:
-
-```sh
-sudo ss -lunpt | grep ':53 ' || true
-sudo ss -ltnp | grep ':53 ' || true
+# Metasploit framework
+docker exec -it kali msfconsole
 ```
 
-If anything is listening on 53, disable it before starting AdGuard.
+### AI Security Tools (Optional)
+For advanced security testing, see [ByteHunter AI Security System](docs/security/bytehunter.md).
 
-2. Start the stack:
+## Router Configuration
 
-```sh
-make compose-up
-```
+### Essential Port Forwards
+- **UDP 51820** → Raspberry Pi (WireGuard VPN)
+- **TCP 9443** → Raspberry Pi (Portainer - LAN access only)
+- **TCP 80** → Raspberry Pi (Pi-hole admin - LAN only)
 
-3. Initial AdGuard setup:
+### DDNS Setup
+1. Register with DuckDNS or similar service
+2. Update `SERVERURL` in docker-compose.yml
+3. Configure DDNS container for automatic updates
 
-- Open `http://your-pi-lan-ip:3000` in a browser.
-- Complete the setup wizard.
-- After setup, the UI is typically `http://your-pi-lan-ip`.
+## Security Best Practices
 
-4. Configure AdGuard upstreams to Unbound:
-
-- Settings -> DNS settings -> Upstream DNS servers:
-  - `udp://127.0.0.1:5335`
-  - `tcp://127.0.0.1:5335`
-
-5. Make VPN clients use your DNS:
-
-- Set `PEERDNS=your-pi-lan-ip` in `docker-compose.yml`.
-- Recreate the stack: `docker compose up -d`.
-
-6. Make your LAN use your DNS:
-
-- Set your router DHCP DNS to your Pi LAN IP.
-- Alternatively, set DNS manually on each LAN device.
-
-Verification:
-
-```sh
-docker logs --tail=200 adguardhome
-docker logs --tail=200 unbound
-docker exec -it wireguard wg
-```
-
-## Step-by-step install script (Docker + WireGuard)
-
-Use this script on a fresh Raspberry Pi OS Lite 64-bit install. It installs Docker, enables required kernel modules, and prepares the WireGuard compose stack.
-
-Script: `scripts/install_wireguard_pi.sh`
-
-```sh
-sudo bash scripts/install_wireguard_pi.sh
-```
-
-## Security Notes
-
-- Use strong SSH keys on the MacBook.
-- Keep the Pi updated.
-- Avoid exposing other services directly to the internet.
-
-## Hardened Firewall (UFW or nftables)
-
-Pick one. UFW is simpler; nftables is more explicit and production-grade.
-
-### UFW (simple)
-
-1. Install and enable:
-
-```sh
-sudo apt-get install -y ufw
+### Firewall Setup (UFW)
+```bash
+sudo apt install ufw
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
-sudo ufw allow 22/tcp
+sudo ufw allow ssh
 sudo ufw allow 51820/udp
 sudo ufw enable
 ```
 
-2. If your VPN clients need LAN access through the Pi, allow forwarding:
+### Access Control
+- **Portainer**: Only expose to LAN, not internet
+- **Kali Container**: Isolated network, no internet access by default
+- **Tor Service**: Anonymous by design
+- **Pi-hole**: Should be primary DNS for network
 
-```sh
-sudo sed -i 's/^DEFAULT_FORWARD_POLICY=.*/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw
-sudo ufw reload
+## Operations
+
+### Common Commands
+```bash
+# Start all services
+docker-compose -f docker-compose.enhanced.yml up -d
+
+# View logs
+docker-compose -f docker-compose.enhanced.yml logs -f [service-name]
+
+# Restart specific service
+docker-compose -f docker-compose.enhanced.yml restart wireguard
+
+# Update containers
+docker-compose -f docker-compose.enhanced.yml pull
+docker-compose -f docker-compose.enhanced.yml up -d
+
+# System status
+docker ps -a
+docker system df
 ```
 
-### nftables (explicit rules)
+### Maintenance
+```bash
+# Clean up unused containers
+docker system prune -a
 
-1. Install and enable:
+# Update Pi-hole ad lists
+docker exec -it pihole pihole -g
 
-```sh
-sudo apt-get install -y nftables
-sudo systemctl enable nftables
+# Rotate WireGuard keys (if needed)
+docker exec -it wireguard /config/add-peer.sh
 ```
 
-2. Create ruleset:
+## Installation Scripts
 
-```sh
-sudo tee /etc/nftables.conf > /dev/null <<'EOF'
-#!/usr/sbin/nft -f
+### Basic VPN Setup
+For WireGuard-only installation, see [docs/setup/basic-setup.md](docs/setup/basic-setup.md).
 
-flush ruleset
+### Enhanced Setup (Full Stack)
+For comprehensive installation with all services, see [docs/setup/enhanced-setup.md](docs/setup/enhanced-setup.md).
 
-table inet filter {
-  chain input {
-    type filter hook input priority 0; policy drop;
-    ct state established,related accept
-    iif "lo" accept
-    tcp dport 22 accept
-    udp dport 51820 accept
-  }
-  chain forward {
-    type filter hook forward priority 0; policy drop;
-    ct state established,related accept
-    iif "wg0" accept
-  }
-  chain output {
-    type filter hook output priority 0; policy accept;
-  }
-}
-EOF
+## Troubleshooting
+
+### Common Issues
+
+#### WireGuard Not Connecting
+```bash
+# Check port forwarding
+docker logs wireguard
+
+# Verify DDNS resolution
+nslookup your-subdomain.duckdns.org
+
+# Check WireGuard status
+docker exec -it wireguard wg
 ```
 
-3. Apply:
+#### Pi-hole Not Blocking Ads
+```bash
+# Verify router DNS settings point to Pi
+# Check Pi-hole status
+docker logs pihole
 
-```sh
-sudo nft -f /etc/nftables.conf
+# Force gravity update
+docker exec -it pihole pihole -g
 ```
 
-## Optional Add-ons
+#### Container Not Starting
+```bash
+# Check system resources
+docker system df
+free -h
 
-- Portainer for Docker management.
-- Uptime Kuma for basic monitoring.
-- Caddy or Traefik if you add web services later.
+# View detailed logs
+docker-compose -f docker-compose.enhanced.yml logs [service-name]
 
-## Tailscale / Headscale Alternative (Comparison)
+# Reset to defaults
+docker-compose -f docker-compose.enhanced.yml down -v
+docker-compose -f docker-compose.enhanced.yml up -d
+```
 
-Use this path if you want zero router changes or are behind CGNAT.
+### Debug Commands
+```bash
+# Network connectivity test
+docker exec -it [container] ping google.com
 
-Tailscale (hosted control plane):
-- Easiest: install on Pi, Mac, and iPhone.
-- No port forwarding or DDNS.
-- SSH to Mac via Tailscale IP (100.x.x.x).
+# Check port bindings
+netstat -tlnp | grep :[port]
 
-Headscale (self-hosted control plane):
-- Same UX as Tailscale but you host the control server.
-- More setup work; still no router port forwarding in most cases.
-- Good when you want full control and no SaaS dependency.
+# Monitor system resources
+htop
+docker stats
+```
 
-When to choose:
-- Choose WireGuard if you want maximum control and can port forward.
-- Choose Tailscale if you want the simplest setup and fast results.
-- Choose Headscale if you want Tailscale-style ease but self-hosted.
+## Alternative Configurations
+
+### Tailscale/Headscale Alternative
+If you prefer zero-config networking over WireGuard:
+
+**Tailscale (Hosted)**:
+- No port forwarding required
+- Easiest setup, SaaS control plane
+- Connect via 100.x.x.x IP addresses
+
+**Headscale (Self-hosted)**:
+- Same UX as Tailscale, but self-hosted control plane
+- Full control, no SaaS dependency
+- More setup work required
+
+See [VPN Alternatives](docs/architecture/system-overview.md) for detailed comparison.
+
+### DNS Options
+- **Pi-hole**: Network-wide ad blocking (default)
+- **AdGuard Home**: Alternative with more features
+- **Cloudflare/Google**: Public resolvers (fallback)
+
+## Documentation
+
+- [Basic VPN Setup](docs/setup/basic-setup.md) - WireGuard-only installation
+- [Enhanced Setup](docs/setup/enhanced-setup.md) - Full stack with all services
+- [ByteHunter Security Tools](docs/security/bytehunter.md) - AI-powered security testing
+- [System Architecture](docs/architecture/system-overview.md) - Technical overview
+- [AGENTS.md](AGENTS.md) - Project conventions and development guidelines
+
+
