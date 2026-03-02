@@ -1,4 +1,4 @@
-# pi-guard - HomeLab VPN on Raspberry Pi
+# pi-frame - HomeLab VPN on Raspberry Pi
 
 A comprehensive HomeLab project featuring a secure VPN setup with Dockerized services including Portainer, Kali Linux container, Pi-hole, and Tor hidden services. The goal is to enable secure remote access from an iPhone to home network resources through a Raspberry Pi.
 
@@ -26,11 +26,11 @@ A comprehensive HomeLab project featuring a secure VPN setup with Dockerized ser
 ssh pi@raspberrypi.local
 ```
 
-### 2. Install pi-guard
+### 2. Install pi-frame
 ```bash
 # Clone and setup
-git clone <your-repo-url> ~/pi-guard
-cd ~/pi-guard
+git clone <your-repo-url> ~/pi-frame
+cd ~/pi-frame
 
 # Run installation script
 chmod +x scripts/install_enhanced_pi.sh

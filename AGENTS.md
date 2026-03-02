@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-**pi-guard** is a comprehensive HomeLab project that provides secure remote access through a Raspberry Pi VPN tunnel with optional advanced security services. The project has evolved from a simple VPN setup to include Docker management, security testing, and privacy services.
+**pi-frame** is a comprehensive HomeLab project that provides secure remote access through a Raspberry Pi VPN tunnel with optional advanced security services. The project has evolved from a simple VPN setup to include Docker management, security testing, and privacy services.
 
 ## Project Scope
 
@@ -20,7 +20,7 @@
 ## Documentation Structure
 
 ```
-pi-guard/
+pi-frame/
 ├── README.md                    # Project overview and quick start
 ├── AGENTS.md                    # This file - project conventions
 └── docs/

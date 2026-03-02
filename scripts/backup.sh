@@ -23,7 +23,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # Configuration
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILE="${BACKUP_DIR}/pi-guard_backup_${TIMESTAMP}.tar.gz"
+BACKUP_FILE="${BACKUP_DIR}/pi-frame_backup_${TIMESTAMP}.tar.gz"
 
 # Directories to backup
 BACKUP_ITEMS=(
@@ -178,7 +178,7 @@ show_usage() {
     echo "Examples:"
     echo "  $0"
     echo "  $0 restore"
-    echo "  $0 restore backups/pi-guard_backup_20240101_120000.tar.gz"
+    echo "  $0 restore backups/pi-frame_backup_20240101_120000.tar.gz"
 }
 
 # Main

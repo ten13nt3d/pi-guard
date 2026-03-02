@@ -40,8 +40,8 @@ sudo reboot
 
 ## Step 3: Clone Repository
 ```bash
-git clone <your-repo-url> ~/pi-guard
-cd ~/pi-guard
+git clone <your-repo-url> ~/pi-frame
+cd ~/pi-frame
 ```
 
 ## Step 4: WireGuard Configuration

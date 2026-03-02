@@ -12,8 +12,8 @@ This guide covers the complete HomeLab setup with Docker, Portainer, Kali Linux 
 ### Install Enhanced Stack
 ```bash
 # Clone repo (if not already done)
-git clone <your-repo-url> ~/pi-guard
-cd ~/pi-guard
+git clone <your-repo-url> ~/pi-frame
+cd ~/pi-frame
 
 # Run enhanced installation script
 chmod +x scripts/install_enhanced_pi.sh
@@ -31,8 +31,8 @@ sudo usermod -aG docker pi
 sudo apt install -y docker-compose-plugin
 
 # Create docker networks
-docker network create pi-guard_security_net
-docker network create pi-guard_tor_net
+docker network create pi-frame_security_net
+docker network create pi-frame_tor_net
 
 # Reboot for group changes
 sudo reboot
@@ -83,7 +83,7 @@ services:
       - ./portainer:/data
     restart: unless-stopped
     networks:
-      - pi-guard_security_net
+      - pi-frame_security_net
 
   # DNS & Ad Blocking
   pihole:
@@ -101,7 +101,7 @@ services:
       - "80:80/tcp"
     restart: unless-stopped
     networks:
-      - pi-guard_security_net
+      - pi-frame_security_net
 
   # Security Testing Container
   kali:
@@ -112,7 +112,7 @@ services:
       - ./kali-tools:/tools
     restart: unless-stopped
     networks:
-      - pi-guard_security_net
+      - pi-frame_security_net
 
   # Tor Hidden Service
   tor:
@@ -128,7 +128,7 @@ services:
       - "9050:9050"
     restart: unless-stopped
     networks:
-      - pi-guard_tor_net
+      - pi-frame_tor_net
 
   # Tor Hidden Web Service
   tor-hidden:
@@ -138,12 +138,12 @@ services:
       - ./tor-web:/usr/share/nginx/html
     restart: unless-stopped
     networks:
-      - pi-guard_tor_net
+      - pi-frame_tor_net
 
 networks:
-  pi-guard_security_net:
+  pi-frame_security_net:
     driver: bridge
-  pi-guard_tor_net:
+  pi-frame_tor_net:
     driver: bridge
 ```
 
@@ -309,7 +309,7 @@ docker-compose -f docker-compose.enhanced.yml logs -f [service-name]
 # Create backup script
 cat > backup-config.sh << 'EOF'
 #!/bin/bash
-BACKUP_DIR="/home/pi/pi-guard-backups/$(date +%Y%m%d)"
+BACKUP_DIR="/home/pi/pi-frame-backups/$(date +%Y%m%d)"
 mkdir -p "$BACKUP_DIR"
 
 # Backup configurations
@@ -353,10 +353,10 @@ This is intentional for security. If needed:
 ```bash
 # Add internet access temporarily
 docker network connect bridge kali
-docker network disconnect pi-guard_security_net kali
+docker network disconnect pi-frame_security_net kali
 
 # Remember to re-isolate after use
-docker network connect pi-guard_security_net kali
+docker network connect pi-frame_security_net kali
 docker network disconnect bridge kali
 ```
 

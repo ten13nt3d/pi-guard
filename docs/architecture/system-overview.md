@@ -1,6 +1,6 @@
 # System Architecture Overview
 
-This document provides a technical overview of the pi-guard HomeLab architecture, component relationships, and design decisions.
+This document provides a technical overview of the pi-frame HomeLab architecture, component relationships, and design decisions.
 
 ## High-Level Architecture
 
